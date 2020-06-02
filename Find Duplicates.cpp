@@ -94,8 +94,11 @@ vector<string> findMatches(vector<string> filesList)
 	vector<string> fileMatches;
 
 	//if the folder containes no files or just one file return empty list of matches
-
-	return fileMatches;
+	if (filesList.size() < 2)
+	{
+		return fileMatches;
+	}
+	
 
 	for (auto i = (filesList.size() - 1); i > 0; i--)
 	{
@@ -165,9 +168,9 @@ bool filesIdentical(string firstFilePath, string secondFilePath)
 
 void printProgramUsage()
 {
-	cout << "this program finds duplicated files in a given directory\n"
+	cout << "this program finds duplicated files in a given directory\n\n"
 		"usage:\n"
-		"findDub path\n";
+		"findDuplicates path\n";
 
 
 }
