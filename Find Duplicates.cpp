@@ -98,7 +98,7 @@ vector<string> findMatches(vector<string> filesList)
 	{
 		return fileMatches;
 	}
-	
+
 
 	for (auto i = (filesList.size() - 1); i > 0; i--)
 	{
@@ -150,8 +150,8 @@ bool filesIdentical(string firstFilePath, string secondFilePath)
 	}
 
 	const size_t readBlockSize = 100;
-	char firstContentBuffer[readBlockSize];
-	char secondContentBuffer[readBlockSize];
+	char firstContentBuffer[readBlockSize] = {0};
+	char secondContentBuffer[readBlockSize] = {0};
 	while (!firstFile.eof())
 	{
 		firstFile.read(firstContentBuffer, readBlockSize);
@@ -161,6 +161,8 @@ bool filesIdentical(string firstFilePath, string secondFilePath)
 			return false;
 		}
 	}
+	firstFile.close();
+	secondFile.close();
 	return true;
 
 }
