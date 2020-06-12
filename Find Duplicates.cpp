@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <iterator>
 #include <fstream>
+#include <chrono>
 
 using namespace std;
 namespace fs = std::filesystem;
@@ -21,6 +22,7 @@ void printList(const vector<string>& vec);
 
 int main(int argc, char* argv[])
 {
+	auto start = std::chrono::high_resolution_clock::now();
 	if (argc < 2)
 	{
 		printProgramUsage();
@@ -50,14 +52,14 @@ int main(int argc, char* argv[])
 			cout << "There is no matches\n";
 
 		}
-		else
-		{
-			cout << "Found Matches: \n";
-			printList(filesMatched);
-		}
+		
 
 
 	}
+
+	auto end = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+	cout << "Duration in milliseconds " << duration.count() << endl;
 	return 0;
 }
 
@@ -99,6 +101,7 @@ vector<string> findMatches(vector<string> filesList)
 		return fileMatches;
 	}
 
+	bool foundMatchesPrinted = false;
 
 	for (auto i = (filesList.size() - 1); i > 0; i--)
 	{
@@ -113,14 +116,25 @@ vector<string> findMatches(vector<string> filesList)
 			if (filesIdentical(filesList[i], filesList[fileToCompareIndex]))
 			{
 				currentFileHasMatches = true;
+				if (!foundMatchesPrinted)
+				{
+					cout << "Found matches: \n\n";
+					foundMatchesPrinted = true;
+				}
+				
+
 				if (!firstFileAddedToGroup)
 				{
 					fileMatches.push_back(filesList[i]);
+					cout << filesList[i] << endl;
+					
 					firstFileAddedToGroup = true;
 
 				}
 
 				fileMatches.push_back(filesList[fileToCompareIndex]);
+				cout << filesList[fileToCompareIndex] << endl;
+
 			}
 
 		}
@@ -128,6 +142,7 @@ vector<string> findMatches(vector<string> filesList)
 		if (currentFileHasMatches)
 		{
 			fileMatches.push_back("");
+			cout << '\n';
 		}
 		currentFileHasMatches = false;
 
@@ -149,7 +164,7 @@ bool filesIdentical(string firstFilePath, string secondFilePath)
 		return false;
 	}
 
-	const size_t readBlockSize = 100;
+	const size_t readBlockSize = 1024;
 	char firstContentBuffer[readBlockSize] = {0};
 	char secondContentBuffer[readBlockSize] = {0};
 	while (!firstFile.eof())
