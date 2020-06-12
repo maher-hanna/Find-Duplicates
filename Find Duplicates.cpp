@@ -15,7 +15,6 @@ vector<string> directoryFiles(const fs::path& path);
 vector<string> findMatches(vector<string> filesList);
 bool filesIdentical(string firstFilePath, string secondFilePath);
 void printProgramUsage();
-void printList(const vector<string>& vec);
 
 //////
 
@@ -193,7 +192,3 @@ void printProgramUsage()
 }
 
 
-void printList(const vector<string>& vec)
-{
-	copy(vec.begin(), vec.end(), ostream_iterator<string>(cout, "\n"));
-}
