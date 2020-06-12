@@ -4,7 +4,6 @@
 #include <algorithm>
 #include <iterator>
 #include <fstream>
-#include <chrono>
 #include "console.h"
 
 using namespace std;
@@ -33,7 +32,7 @@ int main(int argc, char* argv[])
 		string directory = argv[1];
 		filesystem::path path(directory);
 
-		if(!fs::exists(path))
+		if (!fs::exists(path))
 		{
 			cout << "The given folder doesn't exist\n";
 			return 1;
@@ -52,12 +51,12 @@ int main(int argc, char* argv[])
 			cout << "There is no matches\n";
 
 		}
-		
+
 
 
 	}
 
-	
+
 	return 0;
 }
 
@@ -102,17 +101,19 @@ vector<string> findMatches(vector<string> filesList)
 	bool foundMatchesPrinted = false;
 	Console::TextColor currentGroupColor;
 
-	for (auto i = (filesList.size() - 1); i > 0; i--)
+	auto primaryFile = filesList.begin();
+	while (primaryFile != filesList.end() - 1)
 	{
 
 		//add the file to compare only once at the begining of the group of matched files
 		bool currentFileHasMatches = false;
 		bool firstFileAddedToGroup = false;
-	
-		for (long fileToCompareIndex = (i - 1); fileToCompareIndex >= 0; fileToCompareIndex--)
+
+		auto seconderyFile = primaryFile + 1;
+		while (seconderyFile != filesList.end())
 		{
 
-			if (filesIdentical(filesList[i], filesList[fileToCompareIndex]))
+			if (filesIdentical(*primaryFile, *seconderyFile))
 			{
 				currentFileHasMatches = true;
 				if (!foundMatchesPrinted)
@@ -120,23 +121,25 @@ vector<string> findMatches(vector<string> filesList)
 					cout << "Found matches: \n\n";
 					foundMatchesPrinted = true;
 				}
-				
+
 
 				if (!firstFileAddedToGroup)
 				{
 					currentGroupColor = getNextGroupColor();
-					fileMatches.push_back(filesList[i]);
-					Console::printColoredText(filesList[i], Console::TextColor::white, currentGroupColor);
+					fileMatches.push_back(*primaryFile);
+					Console::printColoredText(*primaryFile, Console::TextColor::white, currentGroupColor);
 					cout << endl;
 					firstFileAddedToGroup = true;
 
 				}
 
-				fileMatches.push_back(filesList[fileToCompareIndex]);
-				Console::printColoredText(filesList[fileToCompareIndex], Console::TextColor::white, currentGroupColor);
+				fileMatches.push_back(*seconderyFile);
+				Console::printColoredText(*seconderyFile, Console::TextColor::white, currentGroupColor);
 				cout << endl;
 
 			}
+
+			seconderyFile++;
 
 		}
 
@@ -147,6 +150,7 @@ vector<string> findMatches(vector<string> filesList)
 		}
 		currentFileHasMatches = false;
 
+		primaryFile++;
 
 	}
 
@@ -166,8 +170,8 @@ bool filesIdentical(string firstFilePath, string secondFilePath)
 	}
 
 	const size_t readBlockSize = 1024;
-	char firstContentBuffer[readBlockSize] = {0};
-	char secondContentBuffer[readBlockSize] = {0};
+	char firstContentBuffer[readBlockSize] = { 0 };
+	char secondContentBuffer[readBlockSize] = { 0 };
 	while (!firstFile.eof())
 	{
 		firstFile.read(firstContentBuffer, readBlockSize);
@@ -230,9 +234,9 @@ Console::TextColor getNextGroupColor()
 	case 6:
 		color = Console::TextColor::yellow;
 		break;
-	
+
 	}
 
 	return color;
-	
+
 }
