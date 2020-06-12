@@ -5,8 +5,10 @@
 #include <iterator>
 #include <fstream>
 #include <chrono>
+#include "console.h"
 
 using namespace std;
+using namespace Maher;
 namespace fs = std::filesystem;
 
 
@@ -15,13 +17,12 @@ vector<string> directoryFiles(const fs::path& path);
 vector<string> findMatches(vector<string> filesList);
 bool filesIdentical(string firstFilePath, string secondFilePath);
 void printProgramUsage();
-
+Console::TextColor getNextGroupColor();
 //////
 
 
 int main(int argc, char* argv[])
 {
-	auto start = std::chrono::high_resolution_clock::now();
 	if (argc < 2)
 	{
 		printProgramUsage();
@@ -56,9 +57,7 @@ int main(int argc, char* argv[])
 
 	}
 
-	auto end = std::chrono::high_resolution_clock::now();
-	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-	cout << "Duration in milliseconds " << duration.count() << endl;
+	
 	return 0;
 }
 
@@ -101,6 +100,7 @@ vector<string> findMatches(vector<string> filesList)
 	}
 
 	bool foundMatchesPrinted = false;
+	Console::TextColor currentGroupColor;
 
 	for (auto i = (filesList.size() - 1); i > 0; i--)
 	{
@@ -108,7 +108,7 @@ vector<string> findMatches(vector<string> filesList)
 		//add the file to compare only once at the begining of the group of matched files
 		bool currentFileHasMatches = false;
 		bool firstFileAddedToGroup = false;
-
+	
 		for (long fileToCompareIndex = (i - 1); fileToCompareIndex >= 0; fileToCompareIndex--)
 		{
 
@@ -124,15 +124,17 @@ vector<string> findMatches(vector<string> filesList)
 
 				if (!firstFileAddedToGroup)
 				{
+					currentGroupColor = getNextGroupColor();
 					fileMatches.push_back(filesList[i]);
-					cout << filesList[i] << endl;
-					
+					Console::printColoredText(filesList[i], Console::TextColor::white, currentGroupColor);
+					cout << endl;
 					firstFileAddedToGroup = true;
 
 				}
 
 				fileMatches.push_back(filesList[fileToCompareIndex]);
-				cout << filesList[fileToCompareIndex] << endl;
+				Console::printColoredText(filesList[fileToCompareIndex], Console::TextColor::white, currentGroupColor);
+				cout << endl;
 
 			}
 
@@ -192,3 +194,45 @@ void printProgramUsage()
 }
 
 
+Console::TextColor getNextGroupColor()
+{
+
+	static int index = 0;
+
+	index++;
+	if (index > 5)
+	{
+		index = 0;
+	}
+
+	Console::TextColor color;
+
+	switch (index)
+	{
+	case 0:
+		color = Console::TextColor::black;
+		break;
+	case 1:
+		color = Console::TextColor::blue;
+		break;
+	case 2:
+		color = Console::TextColor::cyan;
+		break;
+	case 3:
+		color = Console::TextColor::green;
+		break;
+	case 4:
+		color = Console::TextColor::magenta;
+		break;
+	case 5:
+		color = Console::TextColor::red;
+		break;
+	case 6:
+		color = Console::TextColor::yellow;
+		break;
+	
+	}
+
+	return color;
+	
+}
