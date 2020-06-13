@@ -35,7 +35,7 @@ public:
 //Functions:
 vector<string> directoryFiles(const fs::path& path);
 vector<string> findMatches(vector<string> & filesList);
-bool filesIdentical(const File & primaryFile, const string &seconderyFilePath);
+bool filesIdentical(const File & primaryFile, const string &secondaryFilePath);
 void printProgramUsage();
 Console::TextColor getNextGroupColor();
 File readFile(const string &path);
@@ -132,11 +132,11 @@ vector<string> findMatches(vector<string> & filesList)
 		bool firstFileAddedToGroup = false;
 		auto primary = readFile(*primaryFile);
 
-		auto seconderyFile = primaryFile + 1;
-		while (seconderyFile != filesList.end())
+		auto secondaryFile = primaryFile + 1;
+		while (secondaryFile != filesList.end())
 		{
 
-			if (filesIdentical(primary, *seconderyFile))
+			if (filesIdentical(primary, *secondaryFile))
 			{
 				currentFileHasMatches = true;
 				if (!foundMatchesPrinted)
@@ -156,14 +156,14 @@ vector<string> findMatches(vector<string> & filesList)
 
 				}
 
-				fileMatches.push_back(*seconderyFile);
-				Console::printColoredText(*seconderyFile, Console::TextColor::white, currentGroupColor);
+				fileMatches.push_back(*secondaryFile);
+				Console::printColoredText(*secondaryFile, Console::TextColor::white, currentGroupColor);
 				cout << endl;
-				seconderyFile = filesList.erase(seconderyFile);
+				secondaryFile = filesList.erase(secondaryFile);
 			}
 
 
-			seconderyFile++;
+			secondaryFile++;
 
 		}
 
@@ -182,42 +182,42 @@ vector<string> findMatches(vector<string> & filesList)
 	return fileMatches;
 }
 
-bool filesIdentical(const File & primaryFile, const string & seconderyFilePath)
+bool filesIdentical(const File & primaryFile, const string & secondaryFilePath)
 {
-	ifstream seconderyFileStream(seconderyFilePath, ios::ate | ios::binary);
+	ifstream secondaryFileStream(secondaryFilePath, ios::ate | ios::binary);
 
-	auto seconderyFileSize = seconderyFileStream.tellg();
+	auto secondaryFileSize = secondaryFileStream.tellg();
 
-	if (primaryFile.size != seconderyFileSize)
+	if (primaryFile.size != secondaryFileSize)
 	{
 		return false;
 	}
 
-	seconderyFileStream.seekg(0);
+	secondaryFileStream.seekg(0);
 
 	char primaryContentBuffer[fileReadBlockSize] = { 0 };
-	char seconderyContentBuffer[fileReadBlockSize] = { 0 };
+	char secondaryContentBuffer[fileReadBlockSize] = { 0 };
 	
-	seconderyFileStream.read(seconderyContentBuffer, fileReadBlockSize);
-	if (!equal(primaryFile.content, primaryFile.content + fileReadBlockSize, seconderyContentBuffer))
+	secondaryFileStream.read(secondaryContentBuffer, fileReadBlockSize);
+	if (!equal(primaryFile.content, primaryFile.content + fileReadBlockSize, secondaryContentBuffer))
 	{
 		return false;
 	}
 
-	//if primary file first block matches secondery file first block 
+	//if primary file first block matches secondary file first block 
 	//continue reading the rest of blocks of the primary file
-	//and compare it to the secondery file blocks;
+	//and compare it to the secondary file blocks;
 	ifstream primaryFileStream(primaryFile.path, ios::binary);
 	primaryFileStream.seekg(fileReadBlockSize, ios::beg);
 	
 
-	while (!seconderyFileStream.eof())
+	while (!secondaryFileStream.eof())
 	{
 		primaryFileStream.read(primaryContentBuffer, fileReadBlockSize);
-		seconderyFileStream.read(seconderyContentBuffer, fileReadBlockSize);
+		secondaryFileStream.read(secondaryContentBuffer, fileReadBlockSize);
 		
 
-		if (!equal(primaryContentBuffer, primaryContentBuffer + fileReadBlockSize, seconderyContentBuffer))
+		if (!equal(primaryContentBuffer, primaryContentBuffer + fileReadBlockSize, secondaryContentBuffer))
 		{
 			return false;
 		}
@@ -225,7 +225,7 @@ bool filesIdentical(const File & primaryFile, const string & seconderyFilePath)
 	
 	}
 	primaryFileStream.close();
-	seconderyFileStream.close();
+	secondaryFileStream.close();
 	return true;
 
 }
