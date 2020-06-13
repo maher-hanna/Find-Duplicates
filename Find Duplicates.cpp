@@ -4,19 +4,41 @@
 #include <algorithm>
 #include <iterator>
 #include <fstream>
+#include <cstring>
 #include "console.h"
 
 using namespace std;
 using namespace Maher;
 namespace fs = std::filesystem;
 
+const size_t fileReadBlockSize = 1024;
+
+
+
+class File
+{
+public:
+	streampos size;
+	char content[fileReadBlockSize];
+	string path;
+
+	File() : size(0), content{}, path("")
+	{
+		
+	}
+	
+};
+
+
+
 
 //Functions:
 vector<string> directoryFiles(const fs::path& path);
-vector<string> findMatches(vector<string> filesList);
-bool filesIdentical(string firstFilePath, string secondFilePath);
+vector<string> findMatches(vector<string> & filesList);
+bool filesIdentical(const File & primaryFile, const string &seconderyFilePath);
 void printProgramUsage();
 Console::TextColor getNextGroupColor();
+File readFile(const string &path);
 //////
 
 
@@ -86,7 +108,7 @@ vector<string> directoryFiles(const fs::path& path)
 
 
 
-vector<string> findMatches(vector<string> filesList)
+vector<string> findMatches(vector<string> & filesList)
 {
 	//group ech group of identical files together in the list
 	//by separating them from other group by an empty element
@@ -108,12 +130,13 @@ vector<string> findMatches(vector<string> filesList)
 		//add the file to compare only once at the begining of the group of matched files
 		bool currentFileHasMatches = false;
 		bool firstFileAddedToGroup = false;
+		auto primary = readFile(*primaryFile);
 
 		auto seconderyFile = primaryFile + 1;
 		while (seconderyFile != filesList.end())
 		{
 
-			if (filesIdentical(*primaryFile, *seconderyFile))
+			if (filesIdentical(primary, *seconderyFile))
 			{
 				currentFileHasMatches = true;
 				if (!foundMatchesPrinted)
@@ -136,8 +159,9 @@ vector<string> findMatches(vector<string> filesList)
 				fileMatches.push_back(*seconderyFile);
 				Console::printColoredText(*seconderyFile, Console::TextColor::white, currentGroupColor);
 				cout << endl;
-
+				seconderyFile = filesList.erase(seconderyFile);
 			}
+
 
 			seconderyFile++;
 
@@ -148,6 +172,7 @@ vector<string> findMatches(vector<string> filesList)
 			fileMatches.push_back("");
 			cout << '\n';
 		}
+
 		currentFileHasMatches = false;
 
 		primaryFile++;
@@ -157,32 +182,50 @@ vector<string> findMatches(vector<string> filesList)
 	return fileMatches;
 }
 
-bool filesIdentical(string firstFilePath, string secondFilePath)
+bool filesIdentical(const File & primaryFile, const string & seconderyFilePath)
 {
-	ifstream firstFile(firstFilePath, ios::ate | ios::binary);
-	ifstream secondFile(secondFilePath, ios::ate | ios::binary);
+	ifstream seconderyFileStream(seconderyFilePath, ios::ate | ios::binary);
 
-	auto firstFileSize = firstFile.tellg();
-	auto secondFileSize = secondFile.tellg();
-	if (firstFileSize != secondFileSize)
+	auto seconderyFileSize = seconderyFileStream.tellg();
+
+	if (primaryFile.size != seconderyFileSize)
 	{
 		return false;
 	}
 
-	const size_t readBlockSize = 1024;
-	char firstContentBuffer[readBlockSize] = { 0 };
-	char secondContentBuffer[readBlockSize] = { 0 };
-	while (!firstFile.eof())
+	seconderyFileStream.seekg(0);
+
+	char primaryContentBuffer[fileReadBlockSize] = { 0 };
+	char seconderyContentBuffer[fileReadBlockSize] = { 0 };
+	
+	seconderyFileStream.read(seconderyContentBuffer, fileReadBlockSize);
+	if (!equal(primaryFile.content, primaryFile.content + fileReadBlockSize, seconderyContentBuffer))
 	{
-		firstFile.read(firstContentBuffer, readBlockSize);
-		secondFile.read(secondContentBuffer, readBlockSize);
-		if (!equal(firstContentBuffer, firstContentBuffer + sizeof(firstContentBuffer), secondContentBuffer))
+		return false;
+	}
+
+	//if primary file first block matches secondery file first block 
+	//continue reading the rest of blocks of the primary file
+	//and compare it to the secondery file blocks;
+	ifstream primaryFileStream(primaryFile.path, ios::binary);
+	primaryFileStream.seekg(fileReadBlockSize, ios::beg);
+	
+
+	while (!seconderyFileStream.eof())
+	{
+		primaryFileStream.read(primaryContentBuffer, fileReadBlockSize);
+		seconderyFileStream.read(seconderyContentBuffer, fileReadBlockSize);
+		
+
+		if (!equal(primaryContentBuffer, primaryContentBuffer + fileReadBlockSize, seconderyContentBuffer))
 		{
 			return false;
 		}
+
+	
 	}
-	firstFile.close();
-	secondFile.close();
+	primaryFileStream.close();
+	seconderyFileStream.close();
 	return true;
 
 }
@@ -238,5 +281,22 @@ Console::TextColor getNextGroupColor()
 	}
 
 	return color;
+
+}
+
+
+File readFile(const string& path)
+{
+	File file;
+	ifstream fileStream(path, ios::ate | ios::binary);
+	file.size = fileStream.tellg();
+	fileStream.seekg(0);
+	
+	fileStream.read(file.content, fileReadBlockSize);
+	file.path = path;
+	return file;
+
+
+
 
 }
