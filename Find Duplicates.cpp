@@ -88,17 +88,12 @@ vector<string> directoryFiles(const fs::path& path)
 {
 	vector<string> result;
 
-	for (const auto& entry : fs::directory_iterator(path))
+	for (const auto& entry : fs::recursive_directory_iterator(path))
 	{
-		const auto& currentEntry = entry.path();
-		if (fs::is_directory(currentEntry))
+		
+		if (fs::is_regular_file(entry))
 		{
-			auto currentDirectoryFiles = directoryFiles(currentEntry);
-			result.insert(result.end(), currentDirectoryFiles.begin(), currentDirectoryFiles.end());
-		}
-		else if (fs::is_regular_file(currentEntry))
-		{
-			result.push_back(currentEntry.u8string());
+			result.push_back(entry.path().u8string());
 		}
 
 	}
