@@ -156,9 +156,13 @@ vector<string> findMatches(vector<string> & filesList)
 				cout << endl;
 				secondaryFile = filesList.erase(secondaryFile);
 			}
+			else
+			{
+				secondaryFile++;
+
+			}
 
 
-			secondaryFile++;
 
 		}
 
@@ -168,7 +172,6 @@ vector<string> findMatches(vector<string> & filesList)
 			cout << '\n';
 		}
 
-		currentFileHasMatches = false;
 
 		primaryFile++;
 
