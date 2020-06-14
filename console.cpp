@@ -7,110 +7,111 @@
 
 #ifdef _WIN32
 namespace {
-	constexpr WORD getWindowsCodeOfColor(Maher::Console::TextColor textColor)
+	constexpr WORD getWindowsCodeOfColor(maher::console::TextColor textColor)
 	{
 		switch (textColor)
 		{
-		case Maher::Console::TextColor::black:
+		case maher::console::TextColor::black:
 			return 0;
 			break;
-		case Maher::Console::TextColor::red:
+		case maher::console::TextColor::red:
 			return FOREGROUND_RED;
 			break;
-		case Maher::Console::TextColor::green:
+		case maher::console::TextColor::green:
 			return FOREGROUND_GREEN;
 			break;
-		case Maher::Console::TextColor::yellow:
+		case maher::console::TextColor::yellow:
 			return 14;
 			break;
-		case Maher::Console::TextColor::blue:
+		case maher::console::TextColor::blue:
 			return FOREGROUND_BLUE;
 			break;
-		case Maher::Console::TextColor::magenta:
+		case maher::console::TextColor::magenta:
 			return 5;
 			break;
-		case Maher::Console::TextColor::cyan:
+		case maher::console::TextColor::cyan:
 			return 3;
 			break;
-		case Maher::Console::TextColor::white:
+		case maher::console::TextColor::white:
 			return 15;
 			break;
-		
+
 		}
 	}
 
-	
+
 }
 #endif
 
-namespace Maher
+namespace maher
 {
-namespace Console
-{
+	namespace console
+	{
+		const char returnToStartOfLine[] = "\33[2K\r";
 
-void printColoredText(const std::string& text, TextColor foregroundColor
-,TextColor backgroundColor)
-{
+		void printColoredText(const std::string& text, TextColor foregroundColor
+			, TextColor backgroundColor)
+		{
 #ifdef _WIN32
-	HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-	WORD currentConsoleAttr;
-	CONSOLE_SCREEN_BUFFER_INFO   screenBufferInfo;
-	//save the current text color
-	if (GetConsoleScreenBufferInfo(hConsole, &screenBufferInfo))
-		currentConsoleAttr = screenBufferInfo.wAttributes;
+			HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+			WORD currentConsoleAttr;
+			CONSOLE_SCREEN_BUFFER_INFO   screenBufferInfo;
+			//save the current text color
+			if (GetConsoleScreenBufferInfo(hConsole, &screenBufferInfo))
+				currentConsoleAttr = screenBufferInfo.wAttributes;
 
-	auto bColor = getWindowsCodeOfColor(backgroundColor);
-	auto fColor = getWindowsCodeOfColor(foregroundColor);
-	WORD color = ((bColor & 0x0F) << 4) + (fColor & 0x0F);
+			auto bColor = getWindowsCodeOfColor(backgroundColor);
+			auto fColor = getWindowsCodeOfColor(foregroundColor);
+			WORD color = ((bColor & 0x0F) << 4) + (fColor & 0x0F);
 
-	SetConsoleTextAttribute(hConsole, color);
-	std::cout << text;
+			SetConsoleTextAttribute(hConsole, color);
+			std::cout << text;
 
-	//restore the previous color
-	SetConsoleTextAttribute(
-		hConsole,
-		currentConsoleAttr);
+			//restore the previous color
+			SetConsoleTextAttribute(
+				hConsole,
+				currentConsoleAttr);
 
 #else
-	//"\033[0m" resets the color to default color
-	//add 10 to background color because the code of black background color starts at 40
-	std::cout << "\033[" << int(foregroundColor) << ";" << int(backgroundColor) + 10 <<  "m"
-                << text << "\033[0m";
+			//"\033[0m" resets the color to default color
+			//add 10 to background color because the code of black background color starts at 40
+			std::cout << "\033[" << int(foregroundColor) << ";" << int(backgroundColor) + 10 << "m"
+				<< text << "\033[0m";
 #endif
 
 
-}
+		}
 
-void printColoredText(const std::string& text, TextColor foregroundColor)
-{
+		void printColoredText(const std::string& text, TextColor foregroundColor)
+		{
 #ifdef _WIN32
-	HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-	WORD currentConsoleAttr;
-	CONSOLE_SCREEN_BUFFER_INFO   screenBufferInfo;
-	//save the current text color
-	if (GetConsoleScreenBufferInfo(hConsole, &screenBufferInfo))
-		currentConsoleAttr = screenBufferInfo.wAttributes;
+			HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+			WORD currentConsoleAttr;
+			CONSOLE_SCREEN_BUFFER_INFO   screenBufferInfo;
+			//save the current text color
+			if (GetConsoleScreenBufferInfo(hConsole, &screenBufferInfo))
+				currentConsoleAttr = screenBufferInfo.wAttributes;
 
-	SetConsoleTextAttribute(hConsole, getWindowsCodeOfColor(foregroundColor));
-	std::cout << text;
+			SetConsoleTextAttribute(hConsole, getWindowsCodeOfColor(foregroundColor));
+			std::cout << text;
 
-	//restore the previous color
-	SetConsoleTextAttribute(
-		hConsole,
-		currentConsoleAttr);
+			//restore the previous color
+			SetConsoleTextAttribute(
+				hConsole,
+				currentConsoleAttr);
 
 #else
-	//"\033[0m" resets the color to default color
-	//add 10 to background color because the code of black background color starts at 40
-	std::cout << "\033[" << int(foregroundColor)  <<  "m"
-                << text << "\033[0m";
+			//"\033[0m" resets the color to default color
+			//add 10 to background color because the code of black background color starts at 40
+			std::cout << "\033[" << int(foregroundColor) << "m"
+				<< text << "\033[0m";
 #endif
 
 
-}
+		}
 
 
-}
+	}
 }
 
 

@@ -5,10 +5,11 @@
 #include <iterator>
 #include <fstream>
 #include <cstring>
+#include <cstdio>
 #include "console.h"
 
 using namespace std;
-using namespace Maher;
+using namespace maher;
 namespace fs = std::filesystem;
 
 const size_t fileReadBlockSize = 1024;
@@ -37,8 +38,10 @@ vector<string> directoryFiles(const fs::path& path);
 vector<string> findMatches(vector<string> & filesList);
 bool filesIdentical(const File & primaryFile, const string &secondaryFilePath);
 void printProgramUsage();
-Console::TextColor getNextGroupColor();
+console::TextColor getNextGroupColor();
 File readFile(const string &path);
+bool confirmDeleteDuplicates();
+
 //////
 
 
@@ -72,6 +75,24 @@ int main(int argc, char* argv[])
 		{
 			cout << "There is no matches\n";
 
+		}
+		else
+		{
+			cout << "Found " << count_if(filesMatched.begin(), filesMatched.end(),
+				[](const string & filePath) {  return filePath != "";
+				}) << " duplicates\n";
+			if (confirmDeleteDuplicates())
+			{
+				for (auto& filePath : filesMatched)
+				{
+					if (filePath != "")
+					{
+						remove(filePath.c_str());
+					}
+				}
+			}
+			
+			
 		}
 
 
@@ -115,10 +136,12 @@ vector<string> findMatches(vector<string> & filesList)
 		return fileMatches;
 	}
 
+
 	bool foundMatchesPrinted = false;
-	Console::TextColor currentGroupColor;
+	console::TextColor currentGroupColor;
 
 	auto primaryFile = filesList.begin();
+	cout << "Searching...\n";
 	while (primaryFile != filesList.end() - 1)
 	{
 
@@ -144,15 +167,14 @@ vector<string> findMatches(vector<string> & filesList)
 				if (!firstFileAddedToGroup)
 				{
 					currentGroupColor = getNextGroupColor();
-					fileMatches.push_back(*primaryFile);
-					Console::printColoredText(*primaryFile, Console::TextColor::white, currentGroupColor);
+					console::printColoredText(*primaryFile, console::TextColor::white, currentGroupColor);
 					cout << endl;
 					firstFileAddedToGroup = true;
 
 				}
 
 				fileMatches.push_back(*secondaryFile);
-				Console::printColoredText(*secondaryFile, Console::TextColor::white, currentGroupColor);
+				console::printColoredText(*secondaryFile, console::TextColor::white, currentGroupColor);
 				cout << endl;
 				secondaryFile = filesList.erase(secondaryFile);
 			}
@@ -239,7 +261,7 @@ void printProgramUsage()
 }
 
 
-Console::TextColor getNextGroupColor()
+console::TextColor getNextGroupColor()
 {
 
 	static int index = 0;
@@ -250,30 +272,30 @@ Console::TextColor getNextGroupColor()
 		index = 0;
 	}
 
-	Console::TextColor color;
+	console::TextColor color;
 
 	switch (index)
 	{
 	case 0:
-		color = Console::TextColor::black;
+		color = console::TextColor::black;
 		break;
 	case 1:
-		color = Console::TextColor::blue;
+		color = console::TextColor::blue;
 		break;
 	case 2:
-		color = Console::TextColor::cyan;
+		color = console::TextColor::cyan;
 		break;
 	case 3:
-		color = Console::TextColor::green;
+		color = console::TextColor::green;
 		break;
 	case 4:
-		color = Console::TextColor::magenta;
+		color = console::TextColor::magenta;
 		break;
 	case 5:
-		color = Console::TextColor::red;
+		color = console::TextColor::red;
 		break;
 	case 6:
-		color = Console::TextColor::yellow;
+		color = console::TextColor::yellow;
 		break;
 
 	}
@@ -297,4 +319,18 @@ File readFile(const string& path)
 
 
 
+}
+
+bool confirmDeleteDuplicates()
+{
+	bool answer = false;
+	cout << "Do you want to delete the duplicated files\n";
+	cout << "yes/y to delete or no/n : " << endl;
+	string input;
+	cin >> input;
+	if (input == "y" || input == "yes")
+	{
+		answer = true;
+	}
+	return answer;
 }
