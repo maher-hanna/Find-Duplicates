@@ -6,6 +6,7 @@
 #include <fstream>
 #include <cstring>
 #include <cstdio>
+#include <map>
 #include "console.h"
 
 using namespace std;
@@ -16,31 +17,17 @@ const size_t fileReadBlockSize = 1024;
 
 
 
-class File
-{
-public:
-	streampos size;
-	char content[fileReadBlockSize];
-	string path;
-
-	File() : size(0), content{}, path("")
-	{
-		
-	}
-	
-};
-
-
-
-
 //Functions:
 vector<string> directoryFiles(const fs::path& path);
-vector<string> findMatches(vector<string> & filesList);
-bool filesIdentical(const File & primaryFile, const string &secondaryFilePath);
+vector<string> matches(vector<string>& filesList);
+vector<string> matchesInGroup(vector<string> fileGroup);
+bool removeUnmatchedInGroup(vector<vector<size_t>>& fileGroup, char* buffers, vector<ifstream*>& filesStreams, streampos offset);
+vector<string> matchesInFileSize(vector<string> filesList);
+
 void printProgramUsage();
 console::TextColor getNextGroupColor();
-File readFile(const string &path);
 bool confirmDeleteDuplicates();
+vector<size_t> duplicateIndexes(const vector<string> filesList);
 
 //////
 
@@ -54,6 +41,7 @@ int main(int argc, char* argv[])
 	}
 	else
 	{
+
 		string directory = argv[1];
 		filesystem::path path(directory);
 
@@ -69,8 +57,9 @@ int main(int argc, char* argv[])
 			return 1;
 		}
 
+		cout << "Searching.... \n";
 		auto filesList = directoryFiles(path);
-		auto filesMatched = findMatches(filesList);
+		auto filesMatched = matches(filesList);
 		if (filesMatched.empty())
 		{
 			cout << "There is no matches\n";
@@ -78,21 +67,18 @@ int main(int argc, char* argv[])
 		}
 		else
 		{
-			cout << "Found " << count_if(filesMatched.begin(), filesMatched.end(),
-				[](const string & filePath) {  return filePath != "";
-				}) << " duplicates\n";
+			auto duplicatesToDelete = duplicateIndexes(filesMatched);
+			cout << "Found " << duplicatesToDelete.size() << " duplicates\n";
 			if (confirmDeleteDuplicates())
 			{
-				for (auto& filePath : filesMatched)
+				for (auto& fileToDeleteIndex : duplicatesToDelete)
 				{
-					if (filePath != "")
-					{
-						remove(filePath.c_str());
-					}
+					remove(filesMatched[fileToDeleteIndex].c_str());
+
 				}
 			}
-			
-			
+
+
 		}
 
 
@@ -111,7 +97,7 @@ vector<string> directoryFiles(const fs::path& path)
 
 	for (const auto& entry : fs::recursive_directory_iterator(path))
 	{
-		
+
 		if (fs::is_regular_file(entry))
 		{
 			result.push_back(entry.path().u8string());
@@ -124,142 +110,254 @@ vector<string> directoryFiles(const fs::path& path)
 
 
 
-vector<string> findMatches(vector<string> & filesList)
-{
-	//group ech group of identical files together in the list
-	//by separating them from other group by an empty element
-	vector<string> fileMatches;
 
+vector<string> matches(vector<string>& filesList)
+{
+	vector<string> fileMatches;
 	//if the folder containes no files or just one file return empty list of matches
 	if (filesList.size() < 2)
 	{
 		return fileMatches;
 	}
 
-
-	bool foundMatchesPrinted = false;
-	console::TextColor currentGroupColor;
-
-	auto primaryFile = filesList.begin();
-	cout << "Searching...\n";
-	while (primaryFile != filesList.end() - 1)
+	//get a list of matched files with size then
+	//get a list of it that containes files with matched first block
+	vector<string> group;
+	auto matchedSizes = matchesInFileSize(filesList);
+	for (auto& path : matchedSizes)
 	{
-
-		//add the file to compare only once at the begining of the group of matched files
-		bool currentFileHasMatches = false;
-		bool firstFileAddedToGroup = false;
-		auto primary = readFile(*primaryFile);
-
-		auto secondaryFile = primaryFile + 1;
-		while (secondaryFile != filesList.end())
+	
+		if (path == "")
 		{
-
-			if (filesIdentical(primary, *secondaryFile))
+			
+			auto groupMatches = matchesInGroup(group);
+			if (!groupMatches.empty())
 			{
-				currentFileHasMatches = true;
-				if (!foundMatchesPrinted)
-				{
-					cout << "Found matches: \n\n";
-					foundMatchesPrinted = true;
-				}
-
-
-				if (!firstFileAddedToGroup)
-				{
-					currentGroupColor = getNextGroupColor();
-					console::printColoredText(*primaryFile, console::TextColor::white, currentGroupColor);
-					cout << endl;
-					firstFileAddedToGroup = true;
-
-				}
-
-				fileMatches.push_back(*secondaryFile);
-				console::printColoredText(*secondaryFile, console::TextColor::white, currentGroupColor);
-				cout << endl;
-				secondaryFile = filesList.erase(secondaryFile);
+				
+				fileMatches.insert(fileMatches.end(), groupMatches.begin(),
+					groupMatches.end());
+				
 			}
-			else
-			{
-				secondaryFile++;
-
-			}
-
-
-
+			group.clear();
+			continue;
 		}
-
-		if (currentFileHasMatches)
-		{
-			fileMatches.push_back("");
-			cout << '\n';
-		}
-
-
-		primaryFile++;
+		group.push_back(path);
 
 	}
 
 	return fileMatches;
+
+
 }
 
-bool filesIdentical(const File & primaryFile, const string & secondaryFilePath)
+
+vector<string> matchesInFileSize(vector<string> filesList)
 {
-	ifstream secondaryFileStream(secondaryFilePath, ios::ate | ios::binary);
 
-	auto secondaryFileSize = secondaryFileStream.tellg();
-
-	if (primaryFile.size != secondaryFileSize)
+	vector<size_t> fileSizes;
+	vector<string> fileSizeMatches;
+	for (size_t i = 0; i < filesList.size(); i++)
 	{
-		return false;
+		fileSizes.push_back(filesystem::file_size(filesList[i]));
 	}
 
-	secondaryFileStream.seekg(0);
-
-	char primaryContentBuffer[fileReadBlockSize] = { 0 };
-	char secondaryContentBuffer[fileReadBlockSize] = { 0 };
-	
-	secondaryFileStream.read(secondaryContentBuffer, fileReadBlockSize);
-	if (!equal(primaryFile.content, primaryFile.content + fileReadBlockSize, secondaryContentBuffer))
+	for (size_t primary = 0; primary < (fileSizes.size() - 1); primary++)
 	{
-		return false;
-	}
-
-	//if primary file first block matches secondary file first block 
-	//continue reading the rest of blocks of the primary file
-	//and compare it to the secondary file blocks;
-	ifstream primaryFileStream(primaryFile.path, ios::binary);
-	primaryFileStream.seekg(fileReadBlockSize, ios::beg);
-	
-
-	while (!secondaryFileStream.eof())
-	{
-		primaryFileStream.read(primaryContentBuffer, fileReadBlockSize);
-		secondaryFileStream.read(secondaryContentBuffer, fileReadBlockSize);
-		
-
-		if (!equal(primaryContentBuffer, primaryContentBuffer + fileReadBlockSize, secondaryContentBuffer))
+		//group potential identecal files in together and separate between them with blank item
+		bool currentFileMayHasMatches = false;
+		bool firstFileAddedToGroup = false;
+		auto secondary = primary + 1;
+		while (secondary < fileSizes.size())
 		{
-			return false;
+
+			if (fileSizes[primary] == fileSizes[secondary])
+			{
+				currentFileMayHasMatches = true;
+				if (!firstFileAddedToGroup)
+				{
+					fileSizeMatches.push_back(filesList[primary]);
+					firstFileAddedToGroup = true;
+				}
+				fileSizeMatches.push_back(filesList[secondary]);
+				filesList.erase(filesList.begin() + secondary);
+				fileSizes.erase(fileSizes.begin() + secondary);
+
+			}
+			else
+			{
+				secondary++;
+			}
+		}
+		if (currentFileMayHasMatches)
+		{
+			fileSizeMatches.push_back("");
+			currentFileMayHasMatches = false;
 		}
 
-	
 	}
-	primaryFileStream.close();
-	secondaryFileStream.close();
-	return true;
-
+	return fileSizeMatches;
 }
 
+vector<string> matchesInGroup(vector<string> fileGroup)
+{
+	vector<string> matchesIngroup;
+	char* buffers = new char[fileReadBlockSize * fileGroup.size()]{ 0 };
+	vector<ifstream*> inputFilesStreams;
+	vector<vector<size_t>> stillMatching;
+
+	for (size_t currentFile = 0; currentFile < fileGroup.size(); currentFile++)
+	{
+
+		std::ifstream* f = new std::ifstream(fileGroup[currentFile].c_str(), ios::binary | ios::in);
+
+		inputFilesStreams.push_back(f);
+	}
+
+
+	//Fill the structure with indexes of every possible matches in file group
+	for (size_t primaryIndex = 0; primaryIndex < (fileGroup.size() - 1); primaryIndex++)
+	{
+		vector<size_t> primaryFileMatches;
+		for (size_t secondaryIndex = (primaryIndex + 1); secondaryIndex < fileGroup.size(); secondaryIndex++)
+		{
+			primaryFileMatches.push_back(secondaryIndex);
+
+		}
+		stillMatching.push_back(primaryFileMatches);
+	}
+
+	size_t readOffset = 0;
+
+	bool stillAreMatches = true;
+	do
+	{
+		stillAreMatches = removeUnmatchedInGroup(stillMatching, buffers, inputFilesStreams, readOffset);
+		readOffset++;
+	} while (stillAreMatches && !(inputFilesStreams.back()->eof()));
+
+	//Close files end clean memeory
+	for (auto streamIndex = 0; streamIndex < inputFilesStreams.size(); streamIndex++)
+	{
+		inputFilesStreams[streamIndex]->close();
+		delete inputFilesStreams[streamIndex];
+	}
+	inputFilesStreams.clear();
+
+	delete[] buffers;
+	//--------------
+
+	vector<string> result;
+
+
+	//remove duplicated groups
+
+
+	for (auto primary = 0; primary < stillMatching.size() - 1; primary++)
+	{
+		for (auto secondary = primary + 1; secondary < stillMatching.size(); secondary++)
+		{
+			if (includes(stillMatching[primary].begin(), stillMatching[primary].end(),
+				stillMatching[secondary].begin(), stillMatching[secondary].end()))
+			{
+				stillMatching[secondary].clear();
+			}
+		}
+	}
+	//-----------
+
+	//print matched files with colors
+	console::TextColor currentGroupColor;
+
+	for (auto primary = 0; primary < stillMatching.size(); primary++)
+	{
+		if (stillMatching[primary].empty())
+		{
+			continue;
+		}
+		else
+		{
+			currentGroupColor = getNextGroupColor();
+			result.push_back(fileGroup[primary]);
+			console::printColoredText(result.back(), console::TextColor::white, currentGroupColor);
+			cout << '\n';
+			for (auto secondary = 0; secondary < stillMatching[primary].size(); secondary++)
+			{
+				result.push_back(fileGroup[stillMatching[primary][secondary]]);
+				console::printColoredText(result.back(), console::TextColor::white, currentGroupColor);
+				cout << '\n';
+			}
+			result.push_back("");
+			cout << '\n';
+		}
+
+	}
+
+	return result;
+}
+
+
+bool removeUnmatchedInGroup(vector<vector<size_t>>& fileGroup, char* buffers, vector<ifstream*>& filesStreams, streampos offset)
+{
+	//match the current sector of every file in group
+	//and remove every tow unmatched files
+
+
+	char* currentBuffer = buffers;
+	memset(buffers, 0, fileReadBlockSize * filesStreams.size());
+	for (size_t fileIndexInBuffer = 0; fileIndexInBuffer < filesStreams.size(); fileIndexInBuffer++)
+	{
+		filesStreams[fileIndexInBuffer]->seekg(offset * fileReadBlockSize);
+		filesStreams[fileIndexInBuffer]->read(currentBuffer, fileReadBlockSize);
+		currentBuffer += fileReadBlockSize;
+	}
+
+
+	bool isStillMatchingEmpty = false;
+	size_t numberOfRemainingMatching = fileGroup.size();
+
+	for (auto primary = 0; primary < fileGroup.size(); primary++)
+	{
+
+		auto secondary = fileGroup[primary].begin();
+		while (secondary != fileGroup[primary].end())
+		{
+			if (!equal(buffers + (primary * fileReadBlockSize), buffers + (primary * fileReadBlockSize) + fileReadBlockSize,
+				buffers + ((*secondary) * fileReadBlockSize)))
+			{
+				secondary = fileGroup[primary].erase(secondary);
+
+
+			}
+			else
+			{
+				secondary++;
+			}
+
+		}
+		if (fileGroup[primary].empty())
+		{
+			
+			numberOfRemainingMatching--;
+		}
+	}
+
+	if (numberOfRemainingMatching == 0)
+	{
+		return false;
+	}
+	return true;
+
+
+}
 
 void printProgramUsage()
 {
-	cout << "this program finds duplicated files in a given directory\n\n"
-		"usage:\n"
+	cout << "This program finds duplicated files in a given directory\n\n"
+		"Usage:\n"
 		"findDuplicates path\n";
 
 
 }
-
 
 console::TextColor getNextGroupColor()
 {
@@ -272,7 +370,7 @@ console::TextColor getNextGroupColor()
 		index = 0;
 	}
 
-	console::TextColor color;
+	console::TextColor color = console::TextColor::black;
 
 	switch (index)
 	{
@@ -305,22 +403,6 @@ console::TextColor getNextGroupColor()
 }
 
 
-File readFile(const string& path)
-{
-	File file;
-	ifstream fileStream(path, ios::ate | ios::binary);
-	file.size = fileStream.tellg();
-	fileStream.seekg(0);
-	
-	fileStream.read(file.content, fileReadBlockSize);
-	file.path = path;
-	return file;
-
-
-
-
-}
-
 bool confirmDeleteDuplicates()
 {
 	bool answer = false;
@@ -333,4 +415,31 @@ bool confirmDeleteDuplicates()
 		answer = true;
 	}
 	return answer;
+}
+
+vector<size_t> duplicateIndexes(const vector<string> filesList)
+{
+	bool skipFirstFileInGroup = false;
+	vector<size_t> indexes;
+	for (auto currenFile = 1; currenFile < filesList.size(); currenFile++)
+	{
+
+		if (filesList[currenFile] == "")
+		{
+			skipFirstFileInGroup = true;
+
+			continue;
+		}
+		else
+		{
+			if (skipFirstFileInGroup)
+			{
+				skipFirstFileInGroup = false;
+				continue;
+			}
+			indexes.push_back(currenFile);
+		}
+	}
+
+	return indexes;
 }
